@@ -91,7 +91,7 @@ jobs:
       - run:
           name: Lightsail 서버에서 배포 실행
           command: |
-            ssh -i ~/.ssh/lightsail_key ${LIGHTSAIL_USER}@${LIGHTSAIL_HOST} << 'DEPLOY_EOF'
+            ssh ${LIGHTSAIL_USER}@${LIGHTSAIL_HOST} "bash -s" \<< EOF
             set -e
             echo "=== ECR 로그인 ==="
             aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 790187585820.dkr.ecr.eu-west-2.amazonaws.com
@@ -113,7 +113,6 @@ jobs:
             echo "=== 컨테이너 상태 확인 ==="
             docker ps | grep config-repo
             echo "배포 완료!"
-            DEPLOY_EOF
 
 workflows:
   version: 2
