@@ -72,11 +72,10 @@ jobs:
 
   # 3단계: Lightsail 서버에 배포
   deploy-to-lightsail:
-    machine:
-      image: ubuntu-2404:current
-    working_directory: ~/repo
+    executor: docker-executor
     steps:
       - checkout
+
       - add_ssh_keys:
           fingerprints:
             - "${SSH_FINGERPRINT}"
