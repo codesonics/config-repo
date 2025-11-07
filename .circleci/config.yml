@@ -93,7 +93,7 @@ jobs:
       - run:
           name: Lightsail 서버에서 배포 실행
           command: |
-            cat > /tmp/deploy.sh << 'DEPLOY_SCRIPT'
+            cat > /tmp/deploy.sh \<< 'DEPLOY_SCRIPT'
             #!/bin/bash
             set -e
             echo "=== ECR 로그인 ==="
