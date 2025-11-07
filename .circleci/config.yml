@@ -72,29 +72,25 @@ jobs:
 
   # 3단계: Lightsail 서버에 배포
   deploy-to-lightsail:
-    machine:
-      image: ubuntu-2404:current
-    working_directory: ~/repo
+    executor: docker-executor
     steps:
       - checkout
 
       - add_ssh_keys:
           fingerprints:
             - "${SSH_FINGERPRINT}"
-
-      # SSH known_hosts 설정
+      # SSH 키 설정
       - run:
-          name: SSH known_hosts 설정
+          name: SSH 키 설정
           command: |
-            mkdir -p ~/.ssh
-            ssh-keyscan -H ${LIGHTSAIL_HOST} >> ~/.ssh/known_hosts 2>/dev/null || true
+            ssh-keyscan -H ${LIGHTSAIL_HOST} >> ~/.ssh/known_hosts
 
-      # Lightsail 서버에서 배포 실행
+
+      # Lightsail 서버에서 ECR 이미지 pull 및 컨테이너 재시작
       - run:
           name: Lightsail 서버에서 배포 실행
           command: |
-            cat > /tmp/deploy.sh \<< 'DEPLOY_SCRIPT'
-            #!/bin/bash
+            ssh ${LIGHTSAIL_USER}@${LIGHTSAIL_HOST} "bash -s" \<< EOF
             set -e
             echo "=== ECR 로그인 ==="
             aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 790187585820.dkr.ecr.eu-west-2.amazonaws.com
@@ -116,10 +112,7 @@ jobs:
             echo "=== 컨테이너 상태 확인 ==="
             docker ps | grep config-repo
             echo "배포 완료!"
-            DEPLOY_SCRIPT
-            
-            chmod +x /tmp/deploy.sh
-            ssh -o StrictHostKeyChecking=no ${LIGHTSAIL_USER}@${LIGHTSAIL_HOST} < /tmp/deploy.sh
+            EOF
 
 workflows:
   version: 2
