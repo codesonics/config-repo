@@ -77,21 +77,22 @@ jobs:
     working_directory: ~/repo
     steps:
       - checkout
-
+      -
+      - add_ssh_keys:
+          fingerprints:
+            - "${SSH_FINGERPRINT}"
       # SSH 키 설정
       - run:
           name: SSH 키 설정
           command: |
-            mkdir -p ~/.ssh
-            echo "$LIGHTSAIL_SSH_PRIVATE_KEY" > ~/.ssh/lightsail_key
-            chmod 600 ~/.ssh/lightsail_key
-            ssh-keyscan -H ${LIGHTSAIL_HOST} >> ~/.ssh/known_hosts 2>/dev/null || true
+            ssh-keyscan -H ${LIGHTSAIL_HOST} >> ~/.ssh/known_hosts
+
 
       # Lightsail 서버에서 ECR 이미지 pull 및 컨테이너 재시작
       - run:
           name: Lightsail 서버에서 배포 실행
           command: |
-            ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no ${LIGHTSAIL_USER}@${LIGHTSAIL_HOST} \<< 'EOF'
+            ssh ${LIGHTSAIL_USER}@${LIGHTSAIL_HOST} "bash -s" \<< EOF
             set -e
             echo "=== ECR 로그인 ==="
             aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 790187585820.dkr.ecr.eu-west-2.amazonaws.com
