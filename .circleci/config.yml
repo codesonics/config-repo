@@ -78,7 +78,7 @@ jobs:
 
       - add_ssh_keys:
           fingerprints:
-            - "${SSH_FINGERPRINT}"
+            - "SHA256:bQiIXlT9e/M9Cn31mQhRse1UGnPcohM4fqpiK7a/oqU"
       # SSH 키 설정
       - run:
           name: SSH 키 설정
