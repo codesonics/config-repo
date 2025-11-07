@@ -1,0 +1,132 @@
+version: 2.1
+
+executors:
+  docker-executor:
+    docker:
+      - image: cimg/openjdk:17.0
+    working_directory: ~/repo
+
+  deploy-executor:
+    docker:
+      - image: cimg/base:stable
+    working_directory: ~/repo
+
+jobs:
+  # 1단계: Gradle 빌드
+  build:
+    executor: docker-executor
+    steps:
+      - checkout
+      - run: chmod +x ./gradlew
+      - run: ./gradlew clean build -x test
+      - persist_to_workspace:
+          root: .
+          paths:
+            - build/libs/*.jar
+
+  # 2단계: Docker 이미지 빌드 및 AWS ECR에 푸시
+  docker-build-and-push:
+    executor: deploy-executor
+    steps:
+      - checkout
+      - attach_workspace:
+          at: .
+      - setup_remote_docker
+
+      # AWS ECR 로그인
+      - run:
+          name: AWS ECR 로그인
+          command: |
+            echo "AWS ECR 로그인 시도..."
+            aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 790187585820.dkr.ecr.eu-west-2.amazonaws.com
+      
+
+      # Docker 이미지 빌드
+      - run:
+          name: Docker 이미지 빌드
+          command: |
+            BUILD_DATE=$(date +%Y-%m-%d)
+            BUILD_TAG="${BUILD_DATE}-${CIRCLE_BUILD_NUM}"
+            docker build -t config-repo:${BUILD_TAG} .
+            docker tag config-repo:${BUILD_TAG} 790187585820.dkr.ecr.eu-west-2.amazonaws.com/lightsail/config-repo:${BUILD_TAG}
+            docker tag config-repo:${BUILD_TAG} 790187585820.dkr.ecr.eu-west-2.amazonaws.com/lightsail/config-repo:latest
+            echo "BUILD_TAG=${BUILD_TAG}" >> $BASH_ENV
+
+      # ECR에 푸시
+      - run:
+          name: ECR에 Docker 이미지 푸시
+          command: |
+            source $BASH_ENV
+            docker push 790187585820.dkr.ecr.eu-west-2.amazonaws.com/lightsail/config-repo:${BUILD_TAG}
+            docker push 790187585820.dkr.ecr.eu-west-2.amazonaws.com/lightsail/config-repo:latest
+
+  # 3단계: Lightsail 서버에 배포
+  deploy-to-lightsail:
+    executor: deploy-executor
+    steps:
+      - checkout
+
+      # SSH 키 설정
+      - run:
+          name: SSH 키 설정
+          command: |
+            ssh-keyscan -H ${LIGHTSAIL_HOST} >> ~/.ssh/known_hosts
+
+      # Lightsail 서버에서 ECR 이미지 pull 및 컨테이너 재시작
+      - run:
+          name: Lightsail 서버에서 배포 실행
+          command: |
+            ssh ${LIGHTSAIL_USER}@${LIGHTSAIL_HOST} "bash -s" \<< EOF
+
+            set -e
+            echo "=== ECR 로그인 ==="
+            aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 790187585820.dkr.ecr.eu-west-2.amazonaws.com
+            
+            echo "=== Docker 이미지 Pull ==="
+            docker pull 790187585820.dkr.ecr.eu-west-2.amazonaws.com/lightsail/config-repo:latest
+            
+            
+            echo "=== 기존 컨테이너 중지 및 제거 ==="
+            docker stop config-repo || true
+            docker rm config-repo || true
+            
+            echo "=== 새로운 컨테이너 실행 ==="
+            docker run -d \
+              --name config-repo \
+              -p 8080:8080 \
+              -e SPRING_PROFILES_ACTIVE=${SPRING_PROFILES_ACTIVE} \
+              790187585820.dkr.ecr.eu-west-2.amazonaws.com/lightsail/config-repo:latest
+            
+            echo "=== 컨테이너 상태 확인 ==="
+            docker ps | grep config-repo
+            echo "배포 완료!"
+            EOF
+
+workflows:
+  version: 2
+  deploy-pipeline:
+    jobs:
+      # main 브랜치에만 배포
+      - build:
+          filters:
+            branches:
+              only: main
+
+      - docker-build-and-push:
+          requires:
+            - build
+          filters:
+            branches:
+              only: main
+          context:
+            - aws-dev
+
+      - deploy-to-lightsail:
+          requires:
+            - docker-build-and-push
+          filters:
+            branches:
+              only: main
+          context:
+            - aws-dev
+            - lightsail-dev
