@@ -82,10 +82,7 @@ jobs:
       - run:
           name: SSH 키 설정
           command: |
-            mkdir -p ~/.ssh
-            echo "$LIGHTSAIL_SSH_PRIVATE_KEY" > ~/.ssh/lightsail_key
-            chmod 600 ~/.ssh/lightsail_key
-            ssh-keyscan -H ${LIGHTSAIL_HOST} >> ~/.ssh/known_hosts 2>/dev/null || true
+            ssh-keyscan -H ${LIGHTSAIL_HOST} >> ~/.ssh/known_hosts
 
       # Lightsail 서버에서 ECR 이미지 pull 및 컨테이너 재시작
       - run:
