@@ -105,7 +105,7 @@ jobs:
             echo "=== 새로운 컨테이너 실행 ==="
             docker run -d \
               --name config-repo \
-              -p 8080:8080 \
+              -p 8111:8080 \
               -e SPRING_PROFILES_ACTIVE=dev \
               790187585820.dkr.ecr.eu-west-2.amazonaws.com/lightsail/config-repo:latest
             
