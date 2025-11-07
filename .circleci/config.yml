@@ -91,7 +91,7 @@ jobs:
       - run:
           name: Lightsail 서버에서 배포 실행
           command: |
-            ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no ${LIGHTSAIL_USER}@${LIGHTSAIL_HOST} << 'EOF'
+            ssh -i ~/.ssh/lightsail_key -o StrictHostKeyChecking=no ${LIGHTSAIL_USER}@${LIGHTSAIL_HOST} \<< 'EOF'
             set -e
             echo "=== ECR 로그인 ==="
             aws ecr get-login-password --region eu-west-2 | docker login --username AWS --password-stdin 790187585820.dkr.ecr.eu-west-2.amazonaws.com
